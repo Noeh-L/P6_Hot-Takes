@@ -1,9 +1,13 @@
 const express = require('express');
-
 const app = express();
+const path = require('path');
 
+const userRoutes = require('./routes/user');
+const sauceRoutes = require('./routes/sauce');
 
 app.use(express.json()); // permet de lire le corps des requêtes POST
+
+
 
 //cette middleware permet l'accès à notre API par tt le monde (possibilité d'avoir pluggin CORS, (npm i cors -> app.use(cors()) ... ))
 app.use((req, res, next) => {
@@ -13,25 +17,11 @@ app.use((req, res, next) => {
     next();
 });
 
-app.get('/api/stuff', (req, res, next) => {
-    const stuff = [
-        {
-            id: 94859385,
-            name: "Mon premier Object",
-            price: 3498
-        },
-        {
-            id: 94859385,
-            name: "Mon premier Object",
-            price: 3498
-        }
-    ];
-        res.status(200).json(stuff);
-});
 
-app.post('/api/stuff', (req, res, next) => {
-    console.log(req.body);
-    res.status(300).json({msh: 'wsh'});
-});
+app.use('/api/auth', userRoutes);
+app.use('/api/sauces', sauceRoutes);
+app.use('/images', express.static(path.join(__dirname, 'images')));
+
+
 
 module.exports = app;
