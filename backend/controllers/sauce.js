@@ -5,13 +5,13 @@ const fs = require('fs');
 exports.getOneSauce = (req, res, next) => {
     Sauce.findOne({ _id: req.params.id })
         .then(sauce => res.status(200).json(sauce))
-        .catch(error => res.status(404).json({error}));
+        .catch(error => res.status(500).json({error}));
 };
 
 exports.getAllSauces = (req, res, next) => {
     Sauce.find()
         .then(sauces => res.status(200).json(sauces))
-        .catch(error => res.status(400).json({error}));
+        .catch(error => res.status(500).json({error}));
 };
 
 exports.voteSauce = (req, res, next) => {
@@ -70,9 +70,12 @@ exports.voteSauce = (req, res, next) => {
 };
 
 exports.createSauce = (req, res, next) => {
-    const sauceObject = JSON.parse(req.body.sauce);
+    
+    // Si qqun essaye d'envoyer une requete autrement qu'avec l'objet sauce, alors erreur.
+    const sauceObject = req.body.sauce ? JSON.parse(req.body.sauce) : res.status(400).json({error: "Bad request."});
+
     delete sauceObject._id;
-    delete sauceObject._userId;
+    delete sauceObject.userId; //par précaution, mais c'est écrasé par la suite (const sauce = new Sauce...)
 
     const sauce = new Sauce({
         ...sauceObject,
@@ -88,40 +91,51 @@ exports.createSauce = (req, res, next) => {
 };
 
 exports.modifySauce = (req, res, next) => {
+
     const sauceObject = req.file ? {
         ...JSON.parse(req.body.sauce),
         imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
     } : { ...req.body };
-  
+
     delete sauceObject._userId; //pour éviter qu'une autre personne puisse modifier la sauce, par sécurité on supprime l'userId du modificateur (i.e. celui qui clique sur "modifier").
+
     Sauce.findOne({_id: req.params.id})
         .then((sauce) => {
             if (sauce.userId != req.auth.userId) {
-                res.status(401).json({message : 'Non autorisé'});
-            } else {
-                Sauce.updateOne({ _id: req.params.id}, { ...sauceObject, _id: req.params.id})
-                    .then(() => res.status(200).json({message : 'Sauce modifiée !'}))
-                    .catch(error => res.status(401).json({error}));
+                res.status(403).json({message : 'User unauthorized !'});
+                return;
             }
+
+            Sauce.updateOne({ _id: req.params.id}, { ...sauceObject, _id: req.params.id})
+                .then(() => res.status(200).json({message : 'Sauce modifiée !'}))
+                .catch(error => res.status(403).json({error}));
+        })
+        .catch(error => res.status(400).json({error}))
+            
+};
+
+exports.deleteSauce = (req, res, next) => {
+    
+    Sauce.findOne({_id: req.params.id})
+        .then((sauce) => {
+
+            // Par sécurité, on vérifie que c'est bien l'user qu iessaye de supprimer, sinon renvoi d'une erreur 403 (forbiden)
+            if (sauce.userId != req.auth.userId) {
+                res.status(403).json({message : 'User unauthorized !'});
+                return;
+            }
+
+            const filename = sauce.imageUrl.split('/images/')[1];
+                fs.unlink(`images/${filename}`, () => {
+                    Sauce.deleteOne({_id: req.params.id})
+                        .then(() => {res.status(200).json({message: 'Sauce supprimée !'})})
+                        .catch(error => res.status(401).json({error}));
+                });
+                
         })
         .catch((error) => {
             res.status(400).json({error});
         });
-};
-
-exports.deleteSauce = (req, res, next) => {
-    Sauce.findOne({_id: req.params.id})
-    .then((sauce) => {
-        const filename = sauce.imageUrl.split('/images/')[1];
-            fs.unlink(`images/${filename}`, () => {
-                Sauce.deleteOne({_id: req.params.id})
-                    .then(() => {res.status(200).json({message: 'Sauce supprimée !'})})
-                    .catch(error => res.status(401).json({error}));
-            });
-    })
-    .catch((error) => {
-        res.status(400).json({error});
-    });
 };
 
 
