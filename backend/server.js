@@ -1,6 +1,7 @@
 const http = require('http');
 const app = require('./app');
 const mongoose = require('mongoose');
+const dotenv = require('dotenv').config();
 
 // // (cours 1.4)
 // const normalizePort = val => {
@@ -18,7 +19,7 @@ const mongoose = require('mongoose');
 // const port = normalizePort(process.env.PORT || '3000');
 // app.set('port', port);
 
-mongoose.connect('mongodb+srv://noeh:nectarinepommepoire@cluster0.el0grmo.mongodb.net',
+mongoose.connect(process.env.DB_ACCESS,
     {
         useNewUrlParser: true,
         useUnifiedTopology: true
